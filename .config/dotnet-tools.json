@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "efvibe": {
+      "version": "0.1.44",
+      "commands": [
+        "efvibe"
+      ],
+      "rollForward": false
+    }
+  }
+}

@@ -58,6 +58,26 @@ Please visit and read the following ReadMe to understand the changes to the defa
 
 - [Enhancement ReadMe](/database/dbup/AdventureWorks.DbUp/README.md)
 
+## efvibe CI/CD showcase
+
+This fork wires **[efvibe](https://github.com/yeahbah/my-ef-vibe)** into GitHub Actions to analyze EF Core LINQ across the persistence layer.
+
+[![efvibe LINQ scan](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml/badge.svg)](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml)
+
+- **Workflow:** [`.github/workflows/efvibe.yml`](.github/workflows/efvibe.yml)
+- **Docs:** [`docs/efvibe-ci.md`](docs/efvibe-ci.md)
+- **Gate:** `efvibe scan deep --fail-on critical` — job exits `1` when critical findings exist (e.g. unbounded `ToListAsync` without `Take`)
+- **Outputs:** JSON report, step summary with top findings, artifacts for `myefvibe-scan-deep.json`
+
+```bash
+dotnet tool restore
+dotnet tool run efvibe -- scan deep \
+  -p apps/api-dotnet/src/AdventureWorks.Infrastructure.Persistence/AdventureWorks.Infrastructure.Persistence.csproj \
+  -s apps/api-dotnet/src/AdventureWorks.API/AdventureWorks.API.csproj \
+  -c AdventureWorksDbContext \
+  --fail-on critical
+```
+
 ## License
 
 This project is licensed under the MIT License.

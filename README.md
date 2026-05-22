@@ -1,10 +1,66 @@
 <p align="center"><img width=128 height=128 src="https://github.com/theMickster/AdventureWorks/blob/main/_media/AdventureWorksIconBlue01.png"></p>
 
-# AdventureWorks
+# AdventureWorks-with-ef-vibe
 
-Adventure Works is a modern enterprise application built with **.NET 10**, **Angular 21**, **Entity Framework Core**, and **Tailwind CSS + DaisyUI**. The architecture follows **Clean Architecture** with **CQRS** patterns, powered by the classic Adventure Works Cycling SQL database from Microsoft.
+A fork of [AdventureWorks](https://github.com/theMickster/AdventureWorks) used as a **reference application** for [**efvibe**](https://github.com/yeahbah/my-ef-vibe) — a .NET global tool that inspects EF Core LINQ, translates queries to SQL, and runs execution plans from the terminal or CI.
 
-## Tech Stack
+This repository is not a separate product. It exists to show how a real Clean Architecture codebase (hundreds of repository queries, multiple `DbContext` patterns, SQL Server) can be checked automatically on every pull request.
+
+[![efvibe LINQ scan](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml/badge.svg)](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml)
+
+## What we are trying to do
+
+**Goal:** Prove that efvibe fits into a normal GitHub Actions pipeline the same way unit tests or analyzers do — without running the full API or hitting every endpoint.
+
+On each push and PR to `main`, CI:
+
+1. Spins up **SQL Server** and creates the **AdventureWorks** database.
+2. Runs **`efvibe scan deep`** against `AdventureWorksDbContext` and the persistence layer.
+3. For each LINQ query call site, attempts **static rules**, **`ToQueryString()`**, and **`EXPLAIN`** (SQL Server showplan).
+4. **Fails the workflow** when any finding is **critical** (`--fail-on critical`).
+
+That last step is intentional. AdventureWorks has many queries that call `ToListAsync()` / `ToArrayAsync()` without `Take()` — efvibe flags them as **`unbounded-materialize` (critical)**. The showcase demonstrates the **gate**: the pipeline stops so teams must fix, dismiss, or relax the threshold before merging.
+
+Lower-severity findings (`info`, `warning`) are filtered out of the CI report when `--fail-on critical` is set, so logs stay focused on what blocked the build.
+
+| Concern | How this repo addresses it |
+|--------|-----------------------------|
+| “Can it run headless?” | Yes — `efvibe scan deep` (no REPL) |
+| “Does it need our running API?” | No — builds the EF project and uses `--connection-string` |
+| “Can we fail the build on bad LINQ?” | Yes — `--fail-on critical` → exit code `1` |
+| “Can we get artifacts for review?” | Yes — JSON report, GitHub Step Summary, `myefvibe-scan-deep.json` |
+
+Full CI details: [`docs/efvibe-ci.md`](docs/efvibe-ci.md) · Workflow: [`.github/workflows/efvibe.yml`](.github/workflows/efvibe.yml)
+
+## Run the scan locally
+
+```bash
+dotnet tool restore   # or build efvibe from github.com/yeahbah/my-ef-vibe
+
+dotnet tool run efvibe -- scan deep \
+  -w ./.efvibe-ci \
+  -p apps/api-dotnet/src/AdventureWorks.Infrastructure.Persistence/AdventureWorks.Infrastructure.Persistence.csproj \
+  -s apps/api-dotnet/src/AdventureWorks.API/AdventureWorks.API.csproj \
+  -c AdventureWorksDbContext \
+  -f net10.0 \
+  --provider sqlserver \
+  --connection-string "Server=localhost,1433;Database=AdventureWorks;User Id=sa;Password=YOUR_PASSWORD;Encrypt=false;TrustServerCertificate=true" \
+  --fail-on critical \
+  --json
+```
+
+Static-only (no database):
+
+```bash
+dotnet tool run efvibe -- scan lite \
+  -p apps/api-dotnet/src/AdventureWorks.Infrastructure.Persistence/AdventureWorks.Infrastructure.Persistence.csproj \
+  -s apps/api-dotnet/src/AdventureWorks.API/AdventureWorks.API.csproj \
+  --fail-on critical
+```
+
+## About the application
+
+Adventure Works is a modern enterprise sample built with **.NET 10**, **Angular 21**, **Entity Framework Core**, and **Tailwind CSS + DaisyUI**. The backend follows **Clean Architecture** with **CQRS** (MediatR), backed by the classic Adventure Works Cycling SQL schema (with project-specific enhancements via DbUp).
 
 | Layer             | Technology                                       |
 | ----------------- | ------------------------------------------------ |
@@ -12,71 +68,56 @@ Adventure Works is a modern enterprise application built with **.NET 10**, **Ang
 | **Frontend**      | Angular 21 + Nx 22 monorepo (Signals, zoneless)  |
 | **Design System** | Alpine Circuit v2 (Tailwind CSS v4 + DaisyUI v5) |
 | **Database**      | SQL Server + Entity Framework Core               |
-| **Icons**         | Font Awesome Free 7                              |
 | **Testing**       | xUnit, Vitest, Playwright                        |
-| **Tooling**       | VS Code, Visual Studio 2026, Azure DevOps        |
 
-## Getting Started
+Upstream app development and features live in [theMickster/AdventureWorks](https://github.com/theMickster/AdventureWorks). This fork tracks that codebase and adds the efvibe CI workflow.
 
 ### Prerequisites
 
-- [Visual Studio 2026](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/) with the Angular Language Service extension
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 22+](https://nodejs.org/) (for the Angular workspace)
-- [SQL Server](https://www.microsoft.com/en-us/sql-server/) (local or Docker)
-- [SQL Server Management Studio](https://docs.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) (see `global.json`)
+- [Node.js 22+](https://nodejs.org/) for the Angular workspace
+- [SQL Server](https://www.microsoft.com/en-us/sql-server/) (local or Docker) for API and deep scan
 
-### Quick Start
+### Quick start (application)
 
 ```bash
 # Backend API
 cd apps/api-dotnet
-dotnet restore && dotnet run
+dotnet restore && dotnet run --project src/AdventureWorks.API
 
 # Frontend (separate terminal)
 cd apps/angular-web
 npm install && npx nx serve adventureworks-web
 ```
 
-## Project Structure
+### Project structure
 
 ```
-AdventureWorks/
+AdventureWorks-with-ef-vibe/
+├── .github/workflows/
+│   ├── efvibe.yml              # LINQ scan showcase (this repo’s focus)
+│   └── pr-validation.yml       # DbUp, API tests, Angular
 ├── apps/
-│   ├── api-dotnet/          # .NET 10 REST API (Clean Architecture)
-│   ├── angular-web/         # Angular 21 SPA (Nx monorepo)
-│   └── microservices/       # Future microservices
+│   ├── api-dotnet/             # .NET 10 REST API
+│   └── angular-web/            # Angular 21 SPA
 ├── database/
-│   ├── dbup/                # Database migrations
-│   └── scripts/             # SQL scripts
-└── docs/                    # Shared documentation
+│   └── dbup/                   # SQL Server migrations
+├── docs/
+│   └── efvibe-ci.md            # CI/CD documentation
+└── .config/dotnet-tools.json   # Pinned efvibe tool (local)
 ```
 
-## Database Enhancements
+### Database enhancements
 
-Please visit and read the following ReadMe to understand the changes to the default AdventureWorks database.
+Schema changes relative to classic AdventureWorks are documented here:
 
-- [Enhancement ReadMe](/database/dbup/AdventureWorks.DbUp/README.md)
+- [DbUp README](database/dbup/AdventureWorks.DbUp/README.md)
 
-## efvibe CI/CD showcase
+## Related links
 
-This fork wires **[efvibe](https://github.com/yeahbah/my-ef-vibe)** into GitHub Actions to analyze EF Core LINQ across the persistence layer.
-
-[![efvibe LINQ scan](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml/badge.svg)](https://github.com/yeahbah/AdventureWorks-with-ef-vibe/actions/workflows/efvibe.yml)
-
-- **Workflow:** [`.github/workflows/efvibe.yml`](.github/workflows/efvibe.yml)
-- **Docs:** [`docs/efvibe-ci.md`](docs/efvibe-ci.md)
-- **Gate:** `efvibe scan deep --fail-on critical` — job exits `1` when critical findings exist (e.g. unbounded `ToListAsync` without `Take`)
-- **Outputs:** JSON report, step summary with top findings, artifacts for `myefvibe-scan-deep.json`
-
-```bash
-dotnet tool restore
-dotnet tool run efvibe -- scan deep \
-  -p apps/api-dotnet/src/AdventureWorks.Infrastructure.Persistence/AdventureWorks.Infrastructure.Persistence.csproj \
-  -s apps/api-dotnet/src/AdventureWorks.API/AdventureWorks.API.csproj \
-  -c AdventureWorksDbContext \
-  --fail-on critical
-```
+- [efvibe (my-ef-vibe)](https://github.com/yeahbah/my-ef-vibe) — tool source, REPL, scan rules
+- [LINQ scan rules](https://github.com/yeahbah/my-ef-vibe/blob/main/docs/linq-scan-rules.md) — rule ids and severities
+- [Original AdventureWorks](https://github.com/theMickster/AdventureWorks)
 
 ## License
 

@@ -53,8 +53,11 @@ jobs:
 
       - name: Create AdventureWorks database
         run: |
-          docker run --rm --network host mcr.microsoft.com/mssql-tools18 \
-            /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -Q \
+          # mssql-tools18 has no public :latest image; sqlcmd ships in the server image.
+          docker run --rm --network host \
+            --entrypoint /opt/mssql-tools18/bin/sqlcmd \
+            mcr.microsoft.com/mssql/server:2022-latest \
+            -S localhost,1433 -U sa -P "$SA_PASSWORD" -C -Q \
             "IF DB_ID('AdventureWorks') IS NULL CREATE DATABASE AdventureWorks;"
 
       - name: Apply DbUp migrations (optional schema for EXPLAIN)

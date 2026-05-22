@@ -35,7 +35,7 @@ Full CI details: [`docs/efvibe-ci.md`](docs/efvibe-ci.md) · Workflow: [`.github
 ## Run the scan locally
 
 ```bash
-dotnet tool restore   # or build efvibe from github.com/yeahbah/my-ef-vibe
+dotnet tool restore   # efvibe 0.1.47 (see .config/dotnet-tools.json)
 
 dotnet tool run efvibe -- scan deep \
   -w ./.efvibe-ci \
@@ -104,7 +104,7 @@ AdventureWorks-with-ef-vibe/
 │   └── dbup/                   # SQL Server migrations
 ├── docs/
 │   └── efvibe-ci.md            # CI/CD documentation
-└── .config/dotnet-tools.json   # Pinned efvibe tool (local)
+└── .config/dotnet-tools.json   # Pinned efvibe 0.1.47 (local + CI)
 ```
 
 ### Database enhancements

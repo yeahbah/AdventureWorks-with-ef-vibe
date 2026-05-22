@@ -8,7 +8,7 @@ This repository demonstrates [efvibe](https://github.com/yeahbah/my-ef-vibe) —
 
 1. Starts **SQL Server 2022** as a service container.
 2. Creates the **AdventureWorks** database (and attempts **DbUp** migrations when possible).
-3. Installs **efvibe** from [`.config/dotnet-tools.json`](../.config/dotnet-tools.json).
+3. Builds **efvibe** from [yeahbah/my-ef-vibe](https://github.com/yeahbah/my-ef-vibe) (CI uses source until the NuGet package includes the EF dependency preload fix; local dev can use `dotnet tool restore`).
 4. Runs **`efvibe scan deep`** against `AdventureWorksDbContext`.
 5. **Fails the job** when any finding is **critical** or higher (`--fail-on critical` → exit code `1`).
 

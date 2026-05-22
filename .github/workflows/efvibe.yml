@@ -47,6 +47,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Build efvibe from source until NuGet has the EF provider dependency preload fix.
+      - uses: actions/checkout@v4
+        with:
+          repository: yeahbah/my-ef-vibe
+          path: .efvibe-src
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
@@ -68,12 +74,9 @@ jobs:
         continue-on-error: true
         run: dotnet run --configuration Release
 
-      - name: Install efvibe
-        run: dotnet tool restore
-
       - name: scan deep — stop on critical (--fail-on critical)
         run: >
-          dotnet tool run efvibe --
+          dotnet run --project .efvibe-src/src/MyEfVibe/MyEfVibe.csproj -f net10.0 -c Release --
           scan deep
           -w "${{ github.workspace }}/.efvibe-ci"
           -p "${{ env.EF_PROJECT }}"
